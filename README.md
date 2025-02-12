@@ -53,4 +53,4 @@ License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 Contact
-Created with ❤️ by Aditya Kumar Mishra. Feel free to reach out on [LinkedIn](www.linkedin.com/in/aditya-kumarmishra) or check out my other projects on GitHub.
+Created with ❤️ by Aditya Kumar Mishra. Feel free to reach out on [LinkedIn](https://www.linkedin.com/in/aditya-kumarmishra) or check out my other projects on GitHub.
