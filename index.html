@@ -125,6 +125,90 @@
             height: 100px;
             margin: -1rem 0;
         }
+
+      /* New Styles */
+.theme-switcher {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.theme-switcher button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.forecast-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.forecast-day {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.chart-container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    border-radius: 20px;
+    margin: 2rem 0;
+}
+
+.news-feed {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    border-radius: 20px;
+    margin: 2rem 0;
+}
+
+.news-item {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+    .weather-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .forecast-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+    @media (max-width: 480px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    #cityInput {
+        width: 200px;
+    }
+    
+    .search-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .theme-switcher {
+        top: 10px;
+        right: 10px;
+        flex-direction: column;
+    }
+}
     </style>
 </head>
 <body>
@@ -156,6 +240,11 @@
                     <p>Pressure: <span id="pressure">-</span> hPa</p>
                 </div>
             </div>
+        <div class="favorites">
+    <h3>Favorite Locations</h3>
+    <ul id="favoritesList"></ul>
+    <button onclick="addFavorite(document.getElementById('cityInput').value)">★ Add Favorite</button>
+</div>
         </div>
 
         <div class="thank-you" id="thankYou">
@@ -163,6 +252,25 @@
         </div>
     </div>
 
+
+<div class="theme-switcher">
+    <button onclick="changeTheme('default')">Default</button>
+    <button onclick="changeTheme('light')">Light</button>
+    <button onclick="changeTheme('dark')">Dark</button>
+</div>
+
+<div class="forecast-container" id="forecastContainer"></div>
+
+<div class="chart-container">
+    <canvas id="weatherChart"></canvas>
+</div>
+
+<div class="news-feed" id="newsFeed"></div>
+
+<button id="getLocation" class="location-btn">📍 Use Current Location</button>
+
+
+    
     <div class="footer">
         <div class="profile-links">
             <a href="https://www.linkedin.com/in/aditya-kumarmishra" target="_blank">LinkedIn</a>
@@ -172,6 +280,126 @@
     </div>
 
     <script>
+     const NEWS_API_KEY = '1fa94e05bf62474186f38386aeca6d15';
+const themes = {
+    default: {
+        primary: '#1e3c72',
+        secondary: '#2a5298',
+        text: '#fff'
+    },
+    light: {
+        primary: '#f0f2f5',
+        secondary: '#ffffff',
+        text: '#2d3436'
+    },
+    dark: {
+        primary: '#2d3436',
+        secondary: '#636e72',
+        text: '#dfe6e9'
+    }
+};
+// Geolocation
+document.getElementById('getLocation').addEventListener('click', () => {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            getWeather(`${position.coords.latitude},${position.coords.longitude}`);
+        });
+    } else {
+        alert('Geolocation is not supported by your browser');
+    }
+});
+
+// 7-Day Forecast
+async function getForecast(city) {
+    const response = await fetch(
+        `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${city}&days=7`
+    );
+    const data = await response.json();
+    
+    const forecastHTML = data.forecast.forecastday.map(day => `
+        <div class="forecast-day">
+            <h3>${new Date(day.date).toLocaleDateString('en', {weekday: 'short'})}</h3>
+            <img src="${day.day.condition.icon}" alt="${day.day.condition.text}">
+            <p>${day.day.maxtemp_c}°C / ${day.day.mintemp_c}°C</p>
+            <p>${day.day.condition.text}</p>
+        </div>
+    `).join('');
+    
+    document.getElementById('forecastContainer').innerHTML = forecastHTML;
+}
+
+// Dynamic Backgrounds
+function updateBackground(condition) {
+    const backgroundImages = {
+        'Sunny': '1.jpg',
+        'Clear': '2.jpg',
+        'Cloudy': '3.jpg',
+        'Rain': '4.jpg',
+        'Snow': '5.jpg'
+    };
+    
+    const image = backgroundImages[condition] || '1.jpg';
+    document.body.style.backgroundImage = `linear-gradient(135deg, rgba(30,60,114,0.8) 0%, rgba(42,82,152,0.8) 100%), url(${image})`;
+}
+
+// Themes
+function changeTheme(themeName) {
+    const theme = themes[themeName];
+    document.body.style.setProperty('--primary-color', theme.primary);
+    document.body.style.setProperty('--secondary-color', theme.secondary);
+    document.body.style.setProperty('--text-color', theme.text);
+    localStorage.setItem('theme', themeName);
+}
+
+// Initialize Chart
+const weatherChart = new Chart(document.getElementById('weatherChart'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [
+            { label: 'Temperature (°C)', data: [], borderColor: '#00b4d8' },
+            { label: 'Humidity (%)', data: [], borderColor: '#90e0ef' },
+            { label: 'Wind Speed (kph)', data: [], borderColor: '#caf0f8' }
+        ]
+    }
+});
+
+// Update existing getWeather function to call getForecast and update background
+async function getWeather(city) {
+    try {
+        // ... existing code ...
+        
+        updateBackground(data.current.condition.text);
+        getForecast(city);
+        updateChart(data);
+        getWeatherNews(data.location.name);
+    } catch (error) { /* ... */ }
+}
+
+// News Feed
+async function getWeatherNews(city) {
+    const response = await fetch(
+        `https://newsapi.org/v2/everything?q=${city}+weather&apiKey=${NEWS_API_KEY}`
+    );
+    const data = await response.json();
+    
+    const newsHTML = data.articles.slice(0, 5).map(article => `
+        <div class="news-item">
+            <h4>${article.title}</h4>
+            <p>${article.description}</p>
+            <a href="${article.url}" target="_blank">Read more</a>
+        </div>
+    `).join('');
+    
+    document.getElementById('newsFeed').innerHTML = newsHTML;
+}
+
+
+
+
+
+
+
         const API_KEY = '8aecd79dc3104cfba78100826251202';
         const weatherCard = document.querySelector('.weather-card');
         const thankYou = document.getElementById('thankYou');
@@ -217,6 +445,26 @@
                 if (city) getWeather(city);
             }
         });
+
+        // Add to JavaScript
+let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+
+function addFavorite(city) {
+    if (!favorites.includes(city)) {
+        favorites.push(city);
+        localStorage.setItem('favorites', JSON.stringify(favorites));
+        updateFavoritesList();
+    }
+}
+
+function updateFavoritesList() {
+    const favoritesList = document.getElementById('favoritesList');
+    favoritesList.innerHTML = favorites.map(city => `
+        <li onclick="getWeather('${city}')">${city}</li>
+    `).join('');
+}
+
+
     </script>
 </body>
 </html>
